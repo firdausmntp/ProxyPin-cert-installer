@@ -1,3 +1,4 @@
+#!/system/bin/sh
 # This script runs when user presses Action button in root manager
 MODDIR=${0%/*}
 LOG_FILE="/data/local/tmp/ProxyPinCert.log"

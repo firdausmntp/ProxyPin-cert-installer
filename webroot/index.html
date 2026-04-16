@@ -485,8 +485,8 @@
                 <div class="upload-area" id="dropZone">
                     <div class="ic">📄</div>
                     <div class="t1">Select certificate file</div>
-                    <div class="t2">.0 / .pem / .crt / .cer</div>
-                    <input type="file" id="fileIn" accept=".0,.pem,.crt,.cer">
+                    <div class="t2">Use hash filename format (.0), example: 243f0bfb.0</div>
+                    <input type="file" id="fileIn" accept=".0">
                 </div>
                 <div class="file-row" id="fileRow">
                     <span class="name" id="fName">—</span>
@@ -630,8 +630,13 @@ dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.
 function onFile() {
     const f = fileIn.files[0];
     if (!f) return;
-    const ok = ['.0','.pem','.crt','.cer'].some(x => f.name.toLowerCase().endsWith(x));
-    if (!ok) { toast('Invalid file format', 'err'); fileIn.value=''; return; }
+    const certName = f.name.trim().toLowerCase();
+    const ok = /^[0-9a-f]{8}\.0$/.test(certName);
+    if (!ok) {
+        toast('Filename must be hash format: 8 hex chars + .0', 'err');
+        fileIn.value = '';
+        return;
+    }
     document.getElementById('fName').textContent = f.name;
     document.getElementById('fSize').textContent = fmt(f.size);
     document.getElementById('fileRow').classList.add('show');
@@ -653,9 +658,17 @@ function fmt(b) {
 async function install() {
     const f = fileIn.files[0];
     if (!f) return;
+    const certName = f.name.trim().toLowerCase();
+    if (!/^[0-9a-f]{8}\.0$/.test(certName)) {
+        toast('Invalid certificate filename', 'err');
+        return;
+    }
+
     const btn = document.getElementById('installBtn');
     const prog = document.getElementById('prog');
     const bar = document.getElementById('progBar');
+    const tmpPath = '/data/local/tmp/proxypin-upload.cert';
+
     btn.disabled = true;
     btn.innerHTML = '<span class="spin"></span> Installing...';
     prog.classList.add('show');
@@ -669,11 +682,12 @@ async function install() {
             r.readAsDataURL(f);
         });
         bar.style.width = '60%';
-        await run(`mkdir -p "${CERTS}"`);
-        await run(`echo '${b64}' | base64 -d > "${CERTS}/${f.name}"`);
-        await run(`chmod 644 "${CERTS}/${f.name}" && chown 0:0 "${CERTS}/${f.name}"`);
+        await run(`mkdir -p "${CERTS}"; rm -f "${tmpPath}"`);
+        await run(`echo '${b64}' | base64 -d > "${tmpPath}"`);
+        await run(`install -m 0644 -o 0 -g 0 "${tmpPath}" "${CERTS}/${certName}"`);
+        await run(`rm -f "${tmpPath}"`);
         bar.style.width = '90%';
-        const v = (await run(`[ -f "${CERTS}/${f.name}" ] && echo y`)).trim();
+        const v = (await run(`[ -f "${CERTS}/${certName}" ] && echo y`)).trim();
         if (v === 'y') {
             bar.style.width = '100%';
             toast('Certificate installed. Reboot to apply.', 'ok');

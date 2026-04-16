@@ -1,3 +1,4 @@
+#!/system/bin/sh
 # Android 5.0 - 16 (API 21-36) compatible
 SKIPUNZIP=0
 

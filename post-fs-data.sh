@@ -121,17 +121,8 @@ for zygote in zygote zygote64; do
     fi
 done
 
-# 4. Try all running app processes (aggressive approach for ProxyPin)
-log "Mounting for all app processes..."
-for pid in $(ls /proc | grep -E '^[0-9]+$'); do
-    if [ -d "/proc/$pid/ns" ] && [ -r "/proc/$pid/cmdline" ]; then
-        cmdline=$(cat /proc/$pid/cmdline 2>/dev/null | tr '\0' ' ')
-        # Only target app processes
-        if echo "$cmdline" | grep -qE "^(com\.|android\.)" 2>/dev/null; then
-            nsenter --mount=/proc/$pid/ns/mnt -- mount --bind "$TEMP_DIR" "$APEX_CACERTS" 2>/dev/null
-        fi
-    fi
-done
+# 4. Keep post-fs-data lightweight; service.sh handles targeted post-boot app namespaces.
+log "Deferred per-app namespace injection to service.sh"
 
 # Verify
 log ""
